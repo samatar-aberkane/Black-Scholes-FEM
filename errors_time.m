@@ -1,0 +1,88 @@
+function [L2_t, H1_t, L2_timeAgg, H1_timeAgg] = errors_time( ...
+    nEls, nodes, connect, elDof, dFreedom, pDeg, pType, Uhist, tgrid)
+
+% Uhist: (ndof x Nt) solution snapshots. Column n = U at time tgrid(n)
+% tgrid: (1 x Nt) or (Nt x 1) times corresponding to snapshots
+
+% quadrature (same as solver)
+[xiQ, wQ] = gQuad;
+nQ = 3;
+
+Nt = length(tgrid);
+L2_t = zeros(Nt,1);
+H1_t = zeros(Nt,1);
+
+for n = 1:Nt
+    t = tgrid(n);
+    u = Uhist(:,n);
+
+    L2 = 0;
+    H1 = 0;
+
+    for e = 1:nEls
+        x1  = nodes(connect(e,1));
+        x2  = nodes(connect(e,2));
+        h   = x2 - x1;
+        jac = h/2;
+
+        nLoc = elDof(e);
+        loc  = dFreedom(e, 1:nLoc);
+
+        for q = 1:nQ
+            xi = xiQ(q, nQ);
+            w  = wQ(q, nQ);
+
+            % physical coordinate (S)
+            S = jac * xi + (x1 + x2)/2;
+
+            % exact MMS solution and derivative at (t,S)
+            ue  = u_exact_ts(t, S);
+            due = uS_exact_ts(t, S);
+
+            [N, dN_dxi] = shape(xi, e, pDeg, pType);
+            dN_dS = dN_dxi / jac;
+
+            uh  = 0;
+            duh = 0;
+            for i = 1:nLoc
+                ui = u(loc(i));
+                uh  = uh  + ui * N(i);
+                duh = duh + ui * dN_dS(i);
+            end
+
+            dS = jac * w;
+
+            L2 = L2 + (ue - uh)^2 * dS;
+            H1 = H1 + (ue - uh)^2 * dS + (due - duh)^2 * dS;
+        end
+    end
+
+    L2_t(n) = sqrt(L2);
+    H1_t(n) = sqrt(H1);
+end
+
+% Optional: time-aggregated norms (discrete L2 in time)
+if Nt >= 2
+    dt = diff(tgrid(:));
+    dt = [dt; dt(end)]; % last step reuse (or handle separately)
+
+    L2_timeAgg = sqrt(sum( (L2_t.^2) .* dt ));
+    H1_timeAgg = sqrt(sum( (H1_t.^2) .* dt ));
+else
+    L2_timeAgg = L2_t(1);
+    H1_timeAgg = H1_t(1);
+end
+
+end
+
+
+function val = u_exact_ts(t, S)
+    Smax = 50; % use the same Smax you hardcoded elsewhere
+    val = exp(-t) .* S .* (Smax - S);
+end
+
+function val = uS_exact_ts(t, S)
+    Smax = 50;
+    val = exp(-t) .* (Smax - 2*S);
+end
+
