@@ -1,6 +1,10 @@
 # 1D Finite Element Solver  
 ### FEM Spatial Discretization + Crank–Nicolson Time Integration
 
+**📄 Project Report:** The complete project report is available in the file [`Black-Scholes FEM.pdf`](Black-Scholes%20FEM.pdf).
+
+---
+
 This repository contains a **1D time-dependent numerical solver** implemented in **MATLAB**.  
 The solution is obtained using the **Finite Element Method (FEM)** for spatial discretization
 (with **P1 and P2 Lagrange elements**) and the **Crank–Nicolson finite-difference scheme**
